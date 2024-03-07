@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IEntity, IRemoteControlInfo, IRemoteComponentCardApi, ControlUpdateHandler } from '@directum/sungero-remote-component-types';
 import './html-control.css'
 
@@ -17,22 +17,29 @@ const HtmlControl: React.FC<IProps> = ({ api, controlInfo }) => {
         throw new Error('propertyName is not defined');
 
     //#region Entity
-    const [entity, setEntity] = React.useState<IEntityWithProperties>(() => api.getEntity<IEntityWithProperties>());
-    const [stamp, setStamp] = React.useState('');
+    const [entity, setEntity] = useState<IEntityWithProperties>(() => api.getEntity<IEntityWithProperties>());
+    const [pageImage, setPageImage] = useState('');
+    const [stamp, setStamp] = useState('');
     const handleControlUpdate: ControlUpdateHandler = React.useCallback(() => {
         setEntity(api.getEntity<IEntityWithProperties>());
-        setStamp(entity[propertyName as string] ?? '');
+        setStamp(entity[propertyName] as string ?? '');
+        setPageImage(entity['FirstPagestarkov'] as string ?? '');
     }, [api, setEntity]);
     React.useEffect(() => {
         showStamp();
     }, [stamp]);
+    React.useEffect(() => {
+        updateBackgroundImage();
+    }, [pageImage]);
     useLayoutEffect(() => {
-        setStamp(entity[propertyName as string] ?? '');
+        setStamp(entity[propertyName] as string ?? '');
+        setPageImage(entity['FirstPagestarkov'] as string ?? '');
     }, []);
     api.onControlUpdate = handleControlUpdate;
     //#endregion
 
     //#region DragControl
+    const [coordsText, setCoordsText] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
     const boxRef = useRef<HTMLDivElement>(null);
     const isClicked = useRef(false);
@@ -47,6 +54,11 @@ const HtmlControl: React.FC<IProps> = ({ api, controlInfo }) => {
         lastX: 0,
         lastY: 0
     })
+
+    function pxToDot(num: number) {
+        var cm = num / 96 * 72;
+        return cm.toFixed(1);
+    }
 
     useEffect(() => {
         if (!boxRef.current || !containerRef.current)
@@ -63,6 +75,7 @@ const HtmlControl: React.FC<IProps> = ({ api, controlInfo }) => {
             isClicked.current = false;
             coords.current.lastX = box.offsetLeft;
             coords.current.lastY = box.offsetTop;
+            setCoordsText(`X: ${pxToDot(coords.current.lastX)}, Y: ${pxToDot(coords.current.lastY)}`);
         }
         const onMouseMove = (e: MouseEvent) => {
             if (!isClicked.current)
@@ -101,8 +114,15 @@ const HtmlControl: React.FC<IProps> = ({ api, controlInfo }) => {
         mainDiv?.appendChild(htmlObject);
     }
 
+    function updateBackgroundImage() {
+        let pageDiv = document.getElementById('page') as HTMLDivElement;
+        pageDiv.style.backgroundImage = `url(data:image/png;base64,${pageImage})`;
+    }
+
     return (
         <main>
+            <label id='coords'>{coordsText}</label>
+            <br />
             <div id='page' className="page" ref={containerRef}>
                 <div id='dynamic-html' className='stamp' ref={boxRef} />
             </div>
