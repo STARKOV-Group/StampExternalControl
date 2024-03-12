@@ -16,6 +16,7 @@
     box-shadow: 0 0 0.5cm rgba(0, 0, 0, 0.5);
     position: relative;
     overflow: hidden;
+    background-size: cover;
 }
 
 main {
