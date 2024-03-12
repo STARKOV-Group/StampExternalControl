@@ -10,8 +10,6 @@
 
 .page {
     background: rgb(255, 255, 255);
-    width: 21cm;
-    height: 29.7cm;
     display: block;
     margin: 0 auto;
     margin-bottom: 0.5cm;
@@ -23,6 +21,4 @@
 main {
     display: grid;
     place-items: center;
-    width: 21cm;
-    height: 29.7cm;
 }
