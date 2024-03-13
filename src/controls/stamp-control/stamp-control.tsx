@@ -10,13 +10,13 @@ interface IProps {
 const StampControl: React.FC<IProps> = ({ api }) => {
     //#region Entity
     const [entity, setEntity] = useState<IStampInfo>(() => api.getEntity<IStampInfo>());
-    const [stampInfo, setStampInfo] = useState<IStampInfoRow | undefined>();
+    const [stampInfo, setStampInfo] = useState<IStampInfoRow | undefined>(entity.StampInfostarkov.find(() => true));
     const isLocked = entity.LockInfo && entity.LockInfo.IsLocked && (!entity.LockInfo.IsLockedByMe || !entity.LockInfo.IsLockedHere);
     const isEnabled = entity.State.IsEnabled && !isLocked;
 
     const handleControlUpdate: ControlUpdateHandler = useCallback(() => {
         setEntity(api.getEntity<IStampInfo>());
-        getStampInfo();
+        setStampInfo(entity.StampInfostarkov.find(() => true));
     }, [api, setEntity]);
     api.onControlUpdate = handleControlUpdate;
 
@@ -36,14 +36,6 @@ const StampControl: React.FC<IProps> = ({ api }) => {
         updateOrientation(stampInfo?.IsLandscape ?? false);
         updateCoordsFromEntity();
     }, [stampInfo?.FirstPageAsImage]);
-
-    useLayoutEffect(() => {
-        getStampInfo();
-    }, []);
-
-    function getStampInfo() {
-        setStampInfo(entity.StampInfostarkov.find(() => true));
-    }
     //#endregion
 
     //#region DragControl
