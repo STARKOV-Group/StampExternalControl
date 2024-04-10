@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { MouseEventHandler, useCallback, useEffect, useRef, useState } from 'react';
 import { IRemoteComponentCardApi, ControlUpdateHandler } from '@directum/sungero-remote-component-types';
 import { ICustomEntity, IPagesRow, IStampInfoRow } from './types';
 import './stamp-control.css'
+import { number } from 'yargs';
 
 interface IProps {
     api: IRemoteComponentCardApi;
@@ -10,15 +11,16 @@ interface IProps {
 const StampControl: React.FC<IProps> = ({ api }) => {
     //#region Entity
     const [entity, setEntity] = useState<ICustomEntity>(() => api.getEntity<ICustomEntity>());
-    const [stampInfo, setStampInfo] = useState<IStampInfoRow | undefined>(entity.StampInfostarkov.find(() => true));
     const [pageInfo, setPageInfo] = useState<IPagesRow | undefined>(entity.Pagesstarkov.find(() => true));
+    const [currentPageNumber, setCurrentPageNumber] = useState<number>(1);
+    const [currentStampId, setCurrentStampId] = useState<number>();
     const isLocked = entity.LockInfo && entity.LockInfo.IsLocked && (!entity.LockInfo.IsLockedByMe || !entity.LockInfo.IsLockedHere);
     const isEnabled = entity.State.IsEnabled && !isLocked;
 
     const handleControlUpdate: ControlUpdateHandler = useCallback(() => {
         setEntity(api.getEntity<ICustomEntity>());
-        setStampInfo(entity.StampInfostarkov.find(() => true));
         setPageInfo(entity.Pagesstarkov.find(() => true));
+        setCurrentPageNumber(1);
     }, [api, setEntity]);
     api.onControlUpdate = handleControlUpdate;
 
@@ -30,11 +32,13 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     };
 
     useEffect(() => {
-        showStamp(stampInfo?.StampHtml ?? '');
-    }, [stampInfo?.StampHtml]);
+        showStamps();
+    }, [entity.StampInfostarkov]);
 
     useEffect(() => {
+        setCurrentPageNumber(pageInfo?.Number ?? 1);
         updateBackgroundImage(pageInfo);
+        showStamps();
         updateCoordsFromEntity();
         setBtnState();
     }, [pageInfo]);
@@ -43,7 +47,14 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     //#region DragControl
     const [coordsText, setCoordsText] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
-    const boxRef = useRef<HTMLDivElement>(null);
+    const boxRefs = entity.StampInfostarkov
+        .filter(row => row.PageNumber == currentPageNumber)
+        .map(row => {
+            return ({
+                boxRef: useRef<HTMLDivElement>(null),
+                stampId: row.Id
+            });
+        });
     const isClicked = useRef(false);
     const coords = useRef<{
         startX: number,
@@ -66,7 +77,8 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     }
 
     useEffect(() => {
-        if (!boxRef.current || !containerRef.current || !isEnabled)
+        var boxRef = boxRefs.find(x => x.stampId == currentStampId)?.boxRef;
+        if (!boxRef?.current || !containerRef.current || !isEnabled)
             return;
 
         const box = boxRef.current;
@@ -111,19 +123,30 @@ const StampControl: React.FC<IProps> = ({ api }) => {
         }
 
         return cleanup;
-    }, []);
+    }, [currentStampId]);
     //#endregion
 
     //#region Elements
-    function showStamp(stamp: string) {
-        let mainDiv = document.getElementById('dynamic-html');
-        mainDiv?.childNodes.forEach((node) => {
-            mainDiv?.removeChild(node)
-        })
-        let htmlObject = document.createElement('div');
-        htmlObject.innerHTML = stamp;
-        htmlObject.className = 'stamp';
-        mainDiv?.appendChild(htmlObject);
+    function showStamps() {
+        entity.StampInfostarkov
+            .filter(row => row.PageNumber == currentPageNumber)
+            .map(row => {
+                let mainDiv = document.getElementById(`dynamic-html${row.Id}`);
+                if (mainDiv?.childNodes.length == 0) {
+                    let htmlObject = document.createElement('div');
+                    htmlObject.innerHTML = row.StampHtml;
+                    htmlObject.className = 'stamp';
+                    htmlObject.onmouseenter = function () { setCurrentStampId(row.Id) };
+                    mainDiv?.appendChild(htmlObject);
+                }
+                else {
+                    mainDiv?.childNodes.forEach((node) => {
+                        var divElem = node as HTMLDivElement;
+                        if (divElem != null)
+                            divElem.innerHTML = row.StampHtml;
+                    });
+                }
+            })
     }
 
     function updateBackgroundImage(pageInfo: IPagesRow | undefined) {
@@ -146,23 +169,25 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     }
 
     function updateCoordsFromEntity() {
-        if (!boxRef.current)
-            return;
+        entity.StampInfostarkov
+            .filter(row => row.PageNumber == currentPageNumber)
+            .map((row) => {
+                var boxRef = boxRefs.find(x => x.stampId == row.Id)?.boxRef;
+                if (!boxRef?.current)
+                    return;
 
-        let x = dotToPx(stampInfo?.CoordX ?? 0);
-        let y = dotToPx(stampInfo?.CoordY ?? 0);
-        setCoordsText(`X: ${stampInfo?.CoordX.toFixed(1) ?? 0}, Y: ${stampInfo?.CoordY.toFixed(1) ?? 0}`);
-        coords.current.lastX = x;
-        coords.current.lastY = y;
-        boxRef.current.style.left = `${x}px`;
-        boxRef.current.style.top = `${y}px`;
+                let x = dotToPx(row?.CoordX ?? 0);
+                let y = dotToPx(row?.CoordY ?? 0);
+                setCoordsText(`X: ${row?.CoordX.toFixed(1) ?? 0}, Y: ${row?.CoordY.toFixed(1) ?? 0}`);
+                coords.current.lastX = x;
+                coords.current.lastY = y;
+                boxRef.current.style.left = `${x}px`;
+                boxRef.current.style.top = `${y}px`;
+            });
     }
 
     function setNextPageNumber(isNext: boolean) {
-        if (pageInfo?.Number == null)
-            return;
-
-        var nextNumber = isNext ? pageInfo?.Number + 1 : pageInfo?.Number - 1;
+        var nextNumber = isNext ? currentPageNumber + 1 : currentPageNumber - 1;
         if (nextNumber < 1 || nextNumber > entity.Pagesstarkov.length)
             return;
 
@@ -180,21 +205,24 @@ const StampControl: React.FC<IProps> = ({ api }) => {
 
         prewiousPageBtn.removeAttribute(disabledAttribute);
         nextPageBtn.removeAttribute(disabledAttribute);
-        if (pageInfo?.Number == 1)
+        if (currentPageNumber == 1)
             prewiousPageBtn.setAttribute(disabledAttribute, disabledAttribute);
-        else if (pageInfo?.Number == entity.Pagesstarkov.length)
+        else if (currentPageNumber == entity.Pagesstarkov.length)
             nextPageBtn.setAttribute(disabledAttribute, disabledAttribute);
     }
     //#endregion
 
     return (
         <main>
+            <label id='coords'>{currentStampId}</label>
             <select id='page-number' onChange={(e) => updatePage(Number((e as React.ChangeEvent<HTMLSelectElement>).target.value))}>
-                {entity.Pagesstarkov.map(row => {
-                    return (
-                        <option key={row.Number}>{row.Number}</option>
-                    );
-                })}
+                {
+                    entity.Pagesstarkov
+                        .map(row => {
+                            return (
+                                <option key={row.Number}>{row.Number}</option>
+                            );
+                        })}
             </select>
             <div>
                 <button id='prewiousPageBtn' onClick={() => setNextPageNumber(false)}>Prewious</button>
@@ -202,8 +230,20 @@ const StampControl: React.FC<IProps> = ({ api }) => {
             </div>
             <label id='coords'>{coordsText}</label>
             <br />
-            <div id='page' className="page" ref={containerRef}>
-                <div id='dynamic-html' className='stamp' ref={boxRef} />
+            <div id='page' className='page' ref={containerRef}>
+                {
+                    entity.StampInfostarkov
+                        .filter(row => row.PageNumber == currentPageNumber)
+                        .map((row) => {
+                            return (
+                                <div
+                                    key={row.Id}
+                                    id={`dynamic-html${row.Id}`}
+                                    className='stamp'
+                                    ref={boxRefs.find(x => x.stampId == row.Id)?.boxRef} />
+                            );
+                        })
+                }
             </div>
         </main>
     )
