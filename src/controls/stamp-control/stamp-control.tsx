@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { IRemoteComponentCardApi, ControlUpdateHandler } from '@directum/sungero-remote-component-types';
-import { IStampInfo, IStampInfoRow } from './types';
+import { ICustomEntity, IPagesRow, IStampInfoRow } from './types';
 import './stamp-control.css'
 
 interface IProps {
@@ -9,14 +9,16 @@ interface IProps {
 
 const StampControl: React.FC<IProps> = ({ api }) => {
     //#region Entity
-    const [entity, setEntity] = useState<IStampInfo>(() => api.getEntity<IStampInfo>());
+    const [entity, setEntity] = useState<ICustomEntity>(() => api.getEntity<ICustomEntity>());
     const [stampInfo, setStampInfo] = useState<IStampInfoRow | undefined>(entity.StampInfostarkov.find(() => true));
+    const [pageInfo, setPageInfo] = useState<IPagesRow | undefined>(entity.Pagesstarkov.find(() => true));
     const isLocked = entity.LockInfo && entity.LockInfo.IsLocked && (!entity.LockInfo.IsLockedByMe || !entity.LockInfo.IsLockedHere);
     const isEnabled = entity.State.IsEnabled && !isLocked;
 
     const handleControlUpdate: ControlUpdateHandler = useCallback(() => {
-        setEntity(api.getEntity<IStampInfo>());
+        setEntity(api.getEntity<ICustomEntity>());
         setStampInfo(entity.StampInfostarkov.find(() => true));
+        setPageInfo(entity.Pagesstarkov.find(() => true));
     }, [api, setEntity]);
     api.onControlUpdate = handleControlUpdate;
 
@@ -32,10 +34,10 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     }, [stampInfo?.StampHtml]);
 
     useEffect(() => {
-        updateBackgroundImage(stampInfo?.FirstPageAsImage ?? '');
-        updateOrientation(stampInfo?.IsLandscape ?? false);
+        updateBackgroundImage(pageInfo);
         updateCoordsFromEntity();
-    }, [stampInfo?.FirstPageAsImage]);
+        setBtnState();
+    }, [pageInfo]);
     //#endregion
 
     //#region DragControl
@@ -124,9 +126,12 @@ const StampControl: React.FC<IProps> = ({ api }) => {
         mainDiv?.appendChild(htmlObject);
     }
 
-    function updateBackgroundImage(pageImage: string) {
-        let pageDiv = document.getElementById('page') as HTMLDivElement;
-        pageDiv.style.backgroundImage = `url(data:image/png;base64,${pageImage})`;
+    function updateBackgroundImage(pageInfo: IPagesRow | undefined) {
+        let pageDiv = document.getElementById(`page`) as HTMLDivElement;
+        if (pageDiv != null) {
+            pageDiv.style.backgroundImage = `url(data:image/png;base64,${pageInfo?.Page})`;
+            updateOrientation(pageInfo?.IsLandscape ?? false);
+        }
     }
 
     function updateOrientation(isLandscape: boolean) {
@@ -152,10 +157,49 @@ const StampControl: React.FC<IProps> = ({ api }) => {
         boxRef.current.style.left = `${x}px`;
         boxRef.current.style.top = `${y}px`;
     }
+
+    function setNextPageNumber(isNext: boolean) {
+        if (pageInfo?.Number == null)
+            return;
+
+        var nextNumber = isNext ? pageInfo?.Number + 1 : pageInfo?.Number - 1;
+        if (nextNumber < 1 || nextNumber > entity.Pagesstarkov.length)
+            return;
+
+        updatePage(nextNumber);
+    }
+
+    function updatePage(nextNumber: number) {
+        setPageInfo(entity.Pagesstarkov.find((row) => row.Number == nextNumber));
+    }
+
+    function setBtnState() {
+        var disabledAttribute = 'disabled';
+        var prewiousPageBtn = document.getElementById(`prewiousPageBtn`) as HTMLDivElement;
+        var nextPageBtn = document.getElementById(`nextPageBtn`) as HTMLDivElement;
+
+        prewiousPageBtn.removeAttribute(disabledAttribute);
+        nextPageBtn.removeAttribute(disabledAttribute);
+        if (pageInfo?.Number == 1)
+            prewiousPageBtn.setAttribute(disabledAttribute, disabledAttribute);
+        else if (pageInfo?.Number == entity.Pagesstarkov.length)
+            nextPageBtn.setAttribute(disabledAttribute, disabledAttribute);
+    }
     //#endregion
 
     return (
         <main>
+            <select id='page-number' onChange={(e) => updatePage(Number((e as React.ChangeEvent<HTMLSelectElement>).target.value))}>
+                {entity.Pagesstarkov.map(row => {
+                    return (
+                        <option key={row.Number}>{row.Number}</option>
+                    );
+                })}
+            </select>
+            <div>
+                <button id='prewiousPageBtn' onClick={() => setNextPageNumber(false)}>Prewious</button>
+                <button id='nextPageBtn' onClick={() => setNextPageNumber(true)}>Next</button>
+            </div>
             <label id='coords'>{coordsText}</label>
             <br />
             <div id='page' className="page" ref={containerRef}>
