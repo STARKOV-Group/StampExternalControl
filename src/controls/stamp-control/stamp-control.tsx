@@ -1,5 +1,5 @@
 import React, { MouseEventHandler, useCallback, useEffect, useRef, useState } from 'react';
-import { IRemoteComponentCardApi, ControlUpdateHandler, IChildEntityCollection } from '@directum/sungero-remote-component-types';
+import { IRemoteComponentCardApi, ControlUpdateHandler } from '@directum/sungero-remote-component-types';
 import { ICustomEntity, IPagesRow, IStampInfoRow } from './types';
 import './stamp-control.css'
 
@@ -9,18 +9,16 @@ interface IProps {
 
 const StampControl: React.FC<IProps> = ({ api }) => {
     //#region Props
-    const [entity, setEntity] = useState<ICustomEntity>(() => api.getEntity<ICustomEntity>());
-    const [pageInfo, setPageInfo] = useState<IPagesRow | undefined>(entity.Pagesstarkov.find(() => true));
-    const [stampInfo, setStampInfo] = useState<IChildEntityCollection<ICustomEntity, IStampInfoRow>>(entity.StampInfostarkov);
-    const [currentPageNumber, setCurrentPageNumber] = useState<number>(1);
+    const [entity, setEntity] = useState(() => api.getEntity<ICustomEntity>());
+    const [pageInfo, setPageInfo] = useState(entity.Pagesstarkov.find(() => true));
+    const [stampInfo, setStampInfo] = useState(entity.StampInfostarkov);
     const [currentStampId, setCurrentStampId] = useState<number>();
     const [coordsText, setCoordsText] = useState('');
     const isLocked = entity.LockInfo && entity.LockInfo.IsLocked && (!entity.LockInfo.IsLockedByMe || !entity.LockInfo.IsLockedHere);
     const isEnabled = entity.State.IsEnabled && !isLocked;
     const isClicked = useRef(false);
     const containerRef = useRef<HTMLDivElement>(null);
-    const boxRefs = stampInfo
-        .filter(row => row.PageNumber == currentPageNumber)
+    let boxRefs = stampInfo
         .map(row => {
             return ({
                 boxRef: useRef<HTMLDivElement>(null),
@@ -43,9 +41,8 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     //#region Entity
     const handleControlUpdate: ControlUpdateHandler = useCallback(() => {
         setEntity(api.getEntity<ICustomEntity>());
-        setStampInfo;
-        setPageInfo;
-        setCurrentPageNumber(1);
+        setStampInfo(entity.StampInfostarkov);
+        setPageInfo(entity.Pagesstarkov.find(() => true));
     }, [api, setEntity]);
     api.onControlUpdate = handleControlUpdate;
 
@@ -57,14 +54,14 @@ const StampControl: React.FC<IProps> = ({ api }) => {
 
     useEffect(() => {
         showStamps();
-    }, [setStampInfo]);
+    }, [stampInfo]);
 
     useEffect(() => {
-        setCurrentPageNumber(pageInfo?.Number ?? 1);
+        //clearPage(false);
         updateBackgroundImage(pageInfo);
         showStamps();
         setBtnState();
-    }, [setPageInfo]);
+    }, [pageInfo]);
     //#endregion
 
     //#region DragControl
@@ -137,14 +134,14 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     //#region Elements
     function showStamps() {
         stampInfo
-            .filter(row => row.PageNumber == currentPageNumber)
+            .filter(row => row.PageNumber == pageInfo?.Number)
             .map(row => {
                 let mainDiv = document.getElementById(`dynamic-html${row.Id}`);
                 if (mainDiv?.childNodes.length == 0) {
                     let htmlObject = document.createElement('div');
                     htmlObject.innerHTML = row.StampHtml;
                     htmlObject.className = 'stamp';
-                    htmlObject.onmousedown = function() {
+                    htmlObject.onmousedown = function () {
                         setCurrentStampId(row.Id);
                     };
                     mainDiv?.appendChild(htmlObject);
@@ -196,7 +193,8 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     }
 
     function setNextPageNumber(isNext: boolean) {
-        var nextNumber = isNext ? currentPageNumber + 1 : currentPageNumber - 1;
+        var pageNumber = Number(pageInfo?.Number);
+        var nextNumber = isNext ? pageNumber + 1 : pageNumber - 1;
         if (nextNumber < 1 || nextNumber > entity.Pagesstarkov.length)
             return;
 
@@ -214,9 +212,9 @@ const StampControl: React.FC<IProps> = ({ api }) => {
 
         prewiousPageBtn.removeAttribute(disabledAttribute);
         nextPageBtn.removeAttribute(disabledAttribute);
-        if (currentPageNumber == 1)
+        if (pageInfo?.Number == 1)
             prewiousPageBtn.setAttribute(disabledAttribute, disabledAttribute);
-        else if (currentPageNumber == entity.Pagesstarkov.length)
+        else if (pageInfo?.Number == entity.Pagesstarkov.length)
             nextPageBtn.setAttribute(disabledAttribute, disabledAttribute);
     }
     //#endregion
@@ -242,7 +240,7 @@ const StampControl: React.FC<IProps> = ({ api }) => {
             <div id='page' className='page' ref={containerRef}>
                 {
                     stampInfo
-                        .filter(row => row.PageNumber == currentPageNumber)
+                        .filter(row => row.PageNumber == pageInfo?.Number)
                         .map((row) => {
                             return (
                                 <div

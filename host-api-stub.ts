@@ -52,6 +52,13 @@ class HostStubApi implements IRemoteComponentCardApi {
           CoordY: 494,
           StampHtml: stampHtml,
           PageNumber: 1
+        },
+        {
+          Id: 3,
+          CoordX: 550,
+          CoordY: 300,
+          StampHtml: stampHtml,
+          PageNumber: 2
         }
       ],
       Pagesstarkov: [
