@@ -25,19 +25,14 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     const [boxRefs, setBoxRefs] = useState(stampInfo
         ?.map(row => {
             return ({
-                boxRef: useRef<HTMLDivElement>(null),
+                boxRef: createRef<HTMLDivElement>(),
                 stampId: row.Id,
-                coords: useRef<{
-                    startX: number,
-                    startY: number,
-                    lastX: number,
-                    lastY: number
-                }>({
+                coords: {
                     startX: 0,
                     startY: 0,
                     lastX: 0,
                     lastY: 0
-                })
+                }
             });
         }));
     //#endregion
@@ -57,6 +52,7 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     };
 
     useEffect(() => {
+        updateBoxRefs();
         showStamps();
     }, [stampInfo]);
 
@@ -65,12 +61,28 @@ const StampControl: React.FC<IProps> = ({ api }) => {
         showStamps();
         setBtnState();
     }, [pageInfo]);
+
+    function updateBoxRefs() {
+        setBoxRefs(stampInfo
+            ?.map(row => {
+                return ({
+                    boxRef: createRef<HTMLDivElement>(),
+                    stampId: row.Id,
+                    coords: {
+                        startX: 0,
+                        startY: 0,
+                        lastX: 0,
+                        lastY: 0
+                    }
+                });
+            }))
+    };
     //#endregion
 
     //#region DragControl
     useEffect(() => {
         var currentStamp = boxRefs.find(x => x.stampId == currentStampId);
-        var coords = currentStamp?.coords.current;
+        var coords = currentStamp?.coords;
         var boxRef = currentStamp?.boxRef;
         if (!boxRef?.current || !containerRef.current || !isEnabled)
             return;
@@ -84,6 +96,8 @@ const StampControl: React.FC<IProps> = ({ api }) => {
 
             coords.startX = e.clientX;
             coords.startY = e.clientY;
+            coords.lastX = box.offsetLeft;
+            coords.lastY = box.offsetTop;
         }
         const onMouseUp = (e: MouseEvent) => {
             isClicked.current = false;
@@ -173,7 +187,7 @@ const StampControl: React.FC<IProps> = ({ api }) => {
 
     function updateStampCoords(row: IStampInfoRow) {
         var currentStamp = boxRefs.find(x => x.stampId == row.Id);
-        var coords = currentStamp?.coords.current;
+        var coords = currentStamp?.coords;
         var boxRef = currentStamp?.boxRef.current;
         if (!boxRef || !coords)
             return;
