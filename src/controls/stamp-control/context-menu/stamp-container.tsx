@@ -1,6 +1,7 @@
 import React, { useState, useEffect, RefObject } from "react";
 import { ContextMenu } from "./menu-style";
 import { ICustomEntity } from "../types";
+import { getAbsoluteOffset } from "../functions";
 
 interface IStampContext {
     Id: string;
@@ -38,11 +39,13 @@ const StampContainer = ({ Id, Ref, entity, stampId }: IStampContext) => {
             onContextMenu={(e) => {
                 e.preventDefault();
                 setClicked(true);
+                var offsets = getAbsoluteOffset(e.currentTarget);
                 setPoints({
-                    x: e.clientX - e.currentTarget.offsetLeft,
-                    y: e.clientY - e.currentTarget.offsetTop - (e.currentTarget.parentElement?.offsetTop ?? 0)
+                    x: e.clientX - offsets.offsetX,
+                    y: e.clientY - offsets.offsetY
                 });
             }}
+            onMouseLeave={() => setClicked(false)}
         >
             {clicked && (
                 <ContextMenu top={points.y} left={points.x}>

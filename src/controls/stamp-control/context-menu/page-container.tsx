@@ -1,7 +1,7 @@
 import React, { useState, useEffect, RefObject } from "react";
 import { ContextMenu } from "./menu-style";
 import { ICustomEntity } from "../types";
-import { pxToDot } from "../functions";
+import { pxToDot, getAbsoluteOffset } from "../functions";
 
 interface IPageContext {
     Id: string;
@@ -35,7 +35,7 @@ const PageContainer = ({ Id, Ref, children, entity, pageNumber }: IPageContext) 
 
     return (
         <div
-        key={Id}
+            key={Id}
             id={Id}
             className='page'
             ref={Ref}
@@ -45,11 +45,13 @@ const PageContainer = ({ Id, Ref, children, entity, pageNumber }: IPageContext) 
                     return;
 
                 setClicked(true);
+                var offsets = getAbsoluteOffset(e.currentTarget);
                 setPoints({
-                    x: e.clientX,
-                    y: e.clientY - e.currentTarget.offsetTop,
+                    x: e.clientX - offsets.offsetX,
+                    y: e.clientY - offsets.offsetY,
                 });
             }}
+            onMouseLeave={() => setClicked(false)}
         >
             {clicked && (
                 <ContextMenu top={points.y} left={points.x}>
