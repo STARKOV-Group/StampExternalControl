@@ -6,6 +6,7 @@ import StampContainer from './context-menu/stamp-container'
 import PageContainer from './context-menu/page-container'
 import './stamp-control.css'
 import { stampHtml, page1, page2 } from '../../../test-data';
+import { time } from 'console';
 
 interface IProps {
     api: IRemoteComponentCardApi;
@@ -21,27 +22,28 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     const isLocked = entity.LockInfo && entity.LockInfo.IsLocked && (!entity.LockInfo.IsLockedByMe || !entity.LockInfo.IsLockedHere);
     const isEnabled = entity.State.IsEnabled && !isLocked;
     const isClicked = useRef(false);
+    const pageSelectorRef = useRef<HTMLSelectElement>(null);
+    const nextBtnRef = useRef<HTMLButtonElement>(null);
+    const prevBtnRef = useRef<HTMLButtonElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const [boxRefs, setBoxRefs] = useState(stampInfo
-        ?.map(row => {
-            return ({
-                boxRef: createRef<HTMLDivElement>(),
-                stampId: row.Id,
-                coords: {
-                    startX: 0,
-                    startY: 0,
-                    lastX: 0,
-                    lastY: 0
-                }
-            });
-        }));
+    let boxRefs = stampInfo?.map(row => {
+        return ({
+            boxRef: createRef<HTMLDivElement>(),
+            stampId: row.Id,
+            coords: {
+                startX: 0,
+                startY: 0,
+                lastX: 0,
+                lastY: 0
+            }
+        });
+    });
     //#endregion
 
     //#region Entity
     const handleControlUpdate: ControlUpdateHandler = useCallback(() => {
         setEntity(api.getEntity<ICustomEntity>());
         setStampInfo(entity?.StampInfostarkov);
-        setPageInfo(entity?.Pagesstarkov.find(() => true));
     }, [api, setEntity]);
     api.onControlUpdate = handleControlUpdate;
 
@@ -52,9 +54,12 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     };
 
     useEffect(() => {
-        updateBoxRefs();
         showStamps();
     }, [stampInfo]);
+
+    useEffect(() => {
+        setPageInfo(entity.Pagesstarkov.find(() => true));
+    }, [entity.Pagesstarkov.length]);
 
     useEffect(() => {
         updateBackgroundImage(pageInfo);
@@ -62,21 +67,6 @@ const StampControl: React.FC<IProps> = ({ api }) => {
         setBtnState();
     }, [pageInfo]);
 
-    function updateBoxRefs() {
-        setBoxRefs(stampInfo
-            ?.map(row => {
-                return ({
-                    boxRef: createRef<HTMLDivElement>(),
-                    stampId: row.Id,
-                    coords: {
-                        startX: 0,
-                        startY: 0,
-                        lastX: 0,
-                        lastY: 0
-                    }
-                });
-            }))
-    };
     //#endregion
 
     //#region DragControl
@@ -111,8 +101,10 @@ const StampControl: React.FC<IProps> = ({ api }) => {
             coords.lastY = box.offsetTop;
             let convertedX = pxToDot(box.offsetLeft);
             let convertedY = pxToDot(box.offsetTop);
-            setCoordsText(`X: ${convertedX.toFixed(1)}, Y: ${convertedY.toFixed(1)}`);
-            handleCoordinateChange(currentStamp?.stampId, convertedX, convertedY);
+            if (convertedX && convertedY) {
+                setCoordsText(`X: ${convertedX.toFixed(1)}, Y: ${convertedY.toFixed(1)}`);
+                handleCoordinateChange(currentStamp?.stampId, convertedX, convertedY);
+            }
         }
         const onMouseMove = (e: MouseEvent) => {
             if (!isClicked.current || !coords)
@@ -145,6 +137,9 @@ const StampControl: React.FC<IProps> = ({ api }) => {
         stampInfo
             .filter(row => row.PageNumber == pageInfo?.Number)
             .map(row => {
+                if (!row.CoordX || !row.CoordY)
+                    return;
+
                 let mainDiv = document.getElementById(`stamp-container${row.Id}`);
                 if (mainDiv?.childNodes?.length == 0) {
                     let htmlObject = document.createElement('div');
@@ -167,7 +162,7 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     }
 
     function updateBackgroundImage(pageInfo: IPagesRow | undefined) {
-        let pageDiv = document.getElementById(`page`) as HTMLDivElement;
+        let pageDiv = containerRef.current;
         if (pageDiv != null) {
             pageDiv.style.backgroundImage = `url(data:image/png;base64,${pageInfo?.Page})`;
             updateOrientation(pageInfo?.IsLandscape ?? false);
@@ -194,7 +189,6 @@ const StampControl: React.FC<IProps> = ({ api }) => {
 
         let x = dotToPx(row?.CoordX ?? 0);
         let y = dotToPx(row?.CoordY ?? 0);
-        setCoordsText(`X: ${row?.CoordX.toFixed(1) ?? 0}, Y: ${row?.CoordY.toFixed(1) ?? 0}`);
         coords.lastX = x;
         coords.lastY = y;
         boxRef.style.left = `${x}px`;
@@ -207,6 +201,8 @@ const StampControl: React.FC<IProps> = ({ api }) => {
         if (nextNumber < 1 || nextNumber > entity?.Pagesstarkov?.length)
             return;
 
+        if (pageSelectorRef.current)
+            pageSelectorRef.current.value = nextNumber.toString();
         updatePage(nextNumber);
     }
 
@@ -216,8 +212,10 @@ const StampControl: React.FC<IProps> = ({ api }) => {
 
     function setBtnState() {
         var disabledAttribute = 'disabled';
-        var prewiousPageBtn = document.getElementById(`prewiousPageBtn`) as HTMLDivElement;
-        var nextPageBtn = document.getElementById(`nextPageBtn`) as HTMLDivElement;
+        var prewiousPageBtn = prevBtnRef.current;
+        var nextPageBtn = nextBtnRef.current;
+        if (!prewiousPageBtn || !nextPageBtn)
+            return;
 
         prewiousPageBtn.removeAttribute(disabledAttribute);
         nextPageBtn.removeAttribute(disabledAttribute);
@@ -230,8 +228,11 @@ const StampControl: React.FC<IProps> = ({ api }) => {
 
     return (
         <main>
-            <label id='coords'>{currentStampId}</label>
-            <select id='page-number' onChange={(e) => updatePage(Number((e as React.ChangeEvent<HTMLSelectElement>).target.value))}>
+            <label id='stampId'>{currentStampId}</label>
+            <select
+                id='page-number'
+                onChange={(e) => updatePage(Number((e as React.ChangeEvent<HTMLSelectElement>).target.value))}
+                ref={pageSelectorRef}>
                 {
                     entity.Pagesstarkov
                         .map(row => {
@@ -241,8 +242,14 @@ const StampControl: React.FC<IProps> = ({ api }) => {
                         })}
             </select>
             <div>
-                <button id='prewiousPageBtn' onClick={() => setNextPageNumber(false)}>Prewious</button>
-                <button id='nextPageBtn' onClick={() => setNextPageNumber(true)}>Next</button>
+                <button
+                    id='prewiousPageBtn'
+                    onClick={() => setNextPageNumber(false)}
+                    ref={prevBtnRef}>Prewious</button>
+                <button
+                    id='nextPageBtn'
+                    onClick={() => setNextPageNumber(true)}
+                    ref={nextBtnRef}>Next</button>
             </div>
             <label id='coords'>{coordsText}</label>
             <br />
