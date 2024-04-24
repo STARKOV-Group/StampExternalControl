@@ -10,7 +10,7 @@ export interface IStampInfoRow extends IChildEntity<ICustomEntity> {
 
 export interface IPagesRow extends IChildEntity<ICustomEntity> {
   Number: number;
-  Page: string;
+  Page: object;
   IsLandscape: boolean;
 }
 
