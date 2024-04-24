@@ -10,11 +10,11 @@ export const getAbsoluteOffset = function (currentElem: HTMLElement | null) {
     var offsetX = 0;
     var offsetY = 0;
     while (currentElem) {
-        if (currentElem?.parentElement) {
+        if (currentElem?.offsetParent) {
             offsetX += currentElem.offsetLeft;
             offsetY += currentElem.offsetTop;
         }
-        currentElem = currentElem.parentElement;
+        currentElem = currentElem.offsetParent as HTMLElement;
     }
     return { offsetX, offsetY };
 }
