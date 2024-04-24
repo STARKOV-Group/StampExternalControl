@@ -1,16 +1,20 @@
 import React, { useState, useEffect, RefObject } from "react";
-import { ContextMenu } from "./menu-style";
-import { ICustomEntity } from "../types";
-import { getAbsoluteOffset } from "../functions";
+import { ContextMenu } from "./context-menu/menu-style";
+import { ICustomEntity } from "./types";
+import { pxToDot, getAbsoluteOffset } from "./functions";
+import { useTranslation } from 'react-i18next';
+import './stamp-control.css'
 
-interface IStampContext {
+interface IPageContext {
     Id: string;
     Ref: RefObject<HTMLDivElement> | undefined;
+    children?: React.ReactNode;
     entity: ICustomEntity;
-    stampId: number;
+    pageNumber: number;
 }
 
-const StampContainer = ({ Id, Ref, entity, stampId }: IStampContext) => {
+const PageContainer = ({ Id, Ref, children, entity, pageNumber }: IPageContext) => {
+    const { t } = useTranslation();
     const [clicked, setClicked] = useState(false);
     const [points, setPoints] = useState({
         x: 0,
@@ -25,37 +29,41 @@ const StampContainer = ({ Id, Ref, entity, stampId }: IStampContext) => {
         };
     }, []);
 
-    const handleStampDelete = () => {
-        var deletedRow = entity.StampInfostarkov.find((row) => row.Id == stampId);
-        if (deletedRow)
-            entity.StampInfostarkov.remove(deletedRow);
+    const handleStampAdd = async () => {
+        const newStamp = await entity.StampInfostarkov.addNew()
+        await newStamp?.changeProperty('PageNumber', pageNumber);
+        await newStamp?.changeProperty('CoordX', pxToDot(points.x));
+        await newStamp?.changeProperty('CoordY', pxToDot(points.y));
     };
 
     return (
         <div
+            key={Id}
             id={Id}
-            className='stamp'
+            className='page'
             ref={Ref}
             onContextMenu={(e) => {
                 e.preventDefault();
+                if ((e.target as HTMLElement)?.id != Id)
+                    return;
+
                 setClicked(true);
                 var offsets = getAbsoluteOffset(e.currentTarget);
                 setPoints({
                     x: e.clientX - offsets.offsetX,
-                    y: e.clientY - offsets.offsetY
+                    y: e.clientY - offsets.offsetY,
                 });
             }}
             onMouseLeave={() => setClicked(false)}
         >
             {clicked && (
                 <ContextMenu top={points.y} left={points.x}>
-                    <ul>
-                        <li onClick={() => handleStampDelete()}>Delete</li>
-                    </ul>
+                    <button onClick={() => handleStampAdd()}>{t('stamp.buttons.add')}</button>
                 </ContextMenu>
             )}
+            {children}
         </div>
     );
 };
 
-export default StampContainer;
+export default PageContainer;

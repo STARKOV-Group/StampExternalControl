@@ -1,24 +1,30 @@
 import React, { createRef, useCallback, useEffect, useRef, useState } from 'react';
-import { IRemoteComponentCardApi, ControlUpdateHandler, IChildEntityCollection } from '@directum/sungero-remote-component-types';
+import { IRemoteComponentCardApi, ControlUpdateHandler, IRemoteComponentContext } from '@directum/sungero-remote-component-types';
 import { ICustomEntity, IPagesRow, IStampInfoRow } from './types';
 import { dotToPx, pxToDot } from './functions';
-import StampContainer from './context-menu/stamp-container'
-import PageContainer from './context-menu/page-container'
+import StampContainer from './stamp-container'
+import PageContainer from './page-container'
 import './stamp-control.css'
-import { stampHtml, page1, page2 } from '../../../test-data';
-import { time } from 'console';
+import '../../../i18n';
+import { useTranslation } from 'react-i18next';
 
 interface IProps {
+    initialContext: IRemoteComponentContext;
     api: IRemoteComponentCardApi;
 }
 
-const StampControl: React.FC<IProps> = ({ api }) => {
+const DEFAULT_CULTURE = 'en';
+
+const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     //#region Props
     const [entity, setEntity] = useState(() => api.getEntity<ICustomEntity>());
     const [pageInfo, setPageInfo] = useState(entity.Pagesstarkov.find(() => true));
     const [stampInfo, setStampInfo] = useState(entity.StampInfostarkov);
     const [currentStampId, setCurrentStampId] = useState<number>();
-    const [coordsText, setCoordsText] = useState('');
+    const [coordsText, setCoordsText] = useState('X, Y');
+    const [context, setContext] = useState(initialContext);
+    const currentCulture = context.currentCulture ?? DEFAULT_CULTURE;
+    const { t, i18n } = useTranslation();
     const isLocked = entity.LockInfo && entity.LockInfo.IsLocked && (!entity.LockInfo.IsLockedByMe || !entity.LockInfo.IsLockedHere);
     const isEnabled = entity.State.IsEnabled && !isLocked;
     const isClicked = useRef(false);
@@ -41,9 +47,10 @@ const StampControl: React.FC<IProps> = ({ api }) => {
     //#endregion
 
     //#region Entity
-    const handleControlUpdate: ControlUpdateHandler = useCallback(() => {
+    const handleControlUpdate: ControlUpdateHandler = useCallback((updatedContext) => {
         setEntity(api.getEntity<ICustomEntity>());
         setStampInfo(entity?.StampInfostarkov);
+        setContext(updatedContext);
     }, [api, setEntity]);
     api.onControlUpdate = handleControlUpdate;
 
@@ -67,6 +74,9 @@ const StampControl: React.FC<IProps> = ({ api }) => {
         setBtnState();
     }, [pageInfo]);
 
+    useEffect(() => {
+        i18n.changeLanguage(currentCulture);
+    }, [currentCulture]);
     //#endregion
 
     //#region DragControl
@@ -228,7 +238,6 @@ const StampControl: React.FC<IProps> = ({ api }) => {
 
     return (
         <main>
-            <label id='stampId'>{currentStampId}</label>
             <select
                 id='page-number'
                 onChange={(e) => updatePage(Number((e as React.ChangeEvent<HTMLSelectElement>).target.value))}
@@ -241,16 +250,18 @@ const StampControl: React.FC<IProps> = ({ api }) => {
                             );
                         })}
             </select>
+            <br />
             <div>
                 <button
                     id='prewiousPageBtn'
                     onClick={() => setNextPageNumber(false)}
-                    ref={prevBtnRef}>Prewious</button>
+                    ref={prevBtnRef}>{t('stamp.buttons.previous')}</button>
                 <button
                     id='nextPageBtn'
                     onClick={() => setNextPageNumber(true)}
-                    ref={nextBtnRef}>Next</button>
+                    ref={nextBtnRef}>{t('stamp.buttons.next')}</button>
             </div>
+            <br />
             <label id='coords'>{coordsText}</label>
             <br />
             <PageContainer Id='page' Ref={containerRef} entity={entity} pageNumber={pageInfo?.Number ?? 1}>

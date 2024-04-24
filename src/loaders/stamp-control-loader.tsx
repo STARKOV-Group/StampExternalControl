@@ -10,6 +10,6 @@ import StampControl from '../controls/stamp-control/stamp-control';
  */
 export default (args: ILoaderArgs): Promise<ControlCleanupCallback> => {
   const root = createRoot(args.container);
-  root.render(<StampControl api={args.api as IRemoteComponentCardApi} />);
+  root.render(<StampControl initialContext={args.initialContext} api={args.api as IRemoteComponentCardApi} />);
   return Promise.resolve(() => root.unmount());
 };

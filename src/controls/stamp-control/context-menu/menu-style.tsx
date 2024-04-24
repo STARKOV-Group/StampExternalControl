@@ -7,7 +7,7 @@ interface IProps {
 
 export const ContextMenu = styled.div<IProps>`
   position: absolute;
-  background-color: grey;
+  background-color: rgba(206, 206, 206);
   border-radius: 2px;
   box-sizing: border-box;
   top: ${(props) => props.top}px;
@@ -20,7 +20,7 @@ export const ContextMenu = styled.div<IProps>`
     list-style: none;
   }
   ul li {
-    padding: 18px 12px;
+    padding: 14px 12px;
   }
   /* hover */
   ul li:hover {
