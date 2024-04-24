@@ -19,9 +19,13 @@ const StampContainer = ({ Id, Ref, entity, stampId }: IStampContext) => {
         x: 0,
         y: 0,
     });
+    let menuClicked = false;
 
     useEffect(() => {
-        const handleClick = () => setClicked(false);
+        const handleClick = () => {
+            setClicked(false);
+            menuClicked = false;
+        }
         window.addEventListener("click", handleClick);
         return () => {
             window.removeEventListener("click", handleClick);
@@ -49,10 +53,14 @@ const StampContainer = ({ Id, Ref, entity, stampId }: IStampContext) => {
                 });
             }}
             onMouseLeave={() => setClicked(false)}
+            onMouseDown={() => {
+                if (!menuClicked)
+                    setClicked(false)
+            }}
         >
             {clicked && (
                 <ContextMenu top={points.y} left={points.x}>
-                    <button onClick={() => handleStampDelete()}>{t('stamp.buttons.delete')}</button>
+                    <button onMouseDown={() => menuClicked = true} onClick={() => handleStampDelete()}>{t('stamp.buttons.delete')}</button>
                 </ContextMenu>
             )}
         </div>

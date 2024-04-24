@@ -20,9 +20,13 @@ const PageContainer = ({ Id, Ref, children, entity, pageNumber }: IPageContext) 
         x: 0,
         y: 0,
     });
+    let menuClicked = false;
 
     useEffect(() => {
-        const handleClick = () => setClicked(false);
+        const handleClick = () => {
+            setClicked(false);
+            menuClicked = false;
+        }
         window.addEventListener("click", handleClick);
         return () => {
             window.removeEventListener("click", handleClick);
@@ -55,10 +59,14 @@ const PageContainer = ({ Id, Ref, children, entity, pageNumber }: IPageContext) 
                 });
             }}
             onMouseLeave={() => setClicked(false)}
+            onMouseDown={() => {
+                if (!menuClicked)
+                    setClicked(false)
+            }}
         >
             {clicked && (
                 <ContextMenu top={points.y} left={points.x}>
-                    <button onClick={() => handleStampAdd()}>{t('stamp.buttons.add')}</button>
+                    <button onMouseDown={() => menuClicked = true} onClick={() => handleStampAdd()}>{t('stamp.buttons.add')}</button>
                 </ContextMenu>
             )}
             {children}

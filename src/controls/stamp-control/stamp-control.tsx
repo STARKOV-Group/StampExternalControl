@@ -164,7 +164,7 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
                 else {
                     mainDiv?.childNodes.forEach((node) => {
                         var divElem = node as HTMLDivElement;
-                        if (divElem != null)
+                        if (divElem)
                             divElem.innerHTML = row.StampHtml;
                     });
                 }
@@ -173,7 +173,7 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
 
     function updateBackgroundImage(pageInfo: IPagesRow | undefined) {
         let pageDiv = containerRef.current;
-        if (pageDiv != null) {
+        if (pageDiv) {
             pageDiv.style.backgroundImage = `url(data:image/png;base64,${(pageInfo?.Page as any)?.$value})`;
             updateOrientation(pageInfo?.IsLandscape ?? false);
         }
