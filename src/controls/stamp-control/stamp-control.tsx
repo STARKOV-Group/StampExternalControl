@@ -18,7 +18,8 @@ const DEFAULT_CULTURE = 'en';
 const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     //#region Props
     const [entity, setEntity] = useState(() => api.getEntity<ICustomEntity>());
-    const [pageInfo, setPageInfo] = useState(entity.Pagesstarkov.find(() => true));
+    const [pageInfo, setPageInfo] = useState(entity.Pagesstarkov);
+    const [currentPageInfo, setCurrentPageInfo] = useState(pageInfo.find(() => true));
     const [stampInfo, setStampInfo] = useState(entity.StampInfostarkov);
     const [currentStampId, setCurrentStampId] = useState<number>();
     const [coordsText, setCoordsText] = useState('X, Y');
@@ -50,6 +51,7 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     const handleControlUpdate: ControlUpdateHandler = useCallback((updatedContext) => {
         setEntity(api.getEntity<ICustomEntity>());
         setStampInfo(entity?.StampInfostarkov);
+        setPageInfo(entity?.Pagesstarkov);
         setContext(updatedContext);
     }, [api, setEntity]);
     api.onControlUpdate = handleControlUpdate;
@@ -65,14 +67,14 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     }, [stampInfo]);
 
     useEffect(() => {
-        setPageInfo(entity.Pagesstarkov.find(() => true));
-    }, [entity.Pagesstarkov.length]);
+        setCurrentPageInfo(pageInfo.find(() => true));
+    }, [setPageInfo]);
 
     useEffect(() => {
-        updateBackgroundImage(pageInfo);
+        updateBackgroundImage(currentPageInfo);
         showStamps();
         setBtnState();
-    }, [pageInfo]);
+    }, [currentPageInfo]);
 
     useEffect(() => {
         i18n.changeLanguage(currentCulture);
@@ -145,7 +147,7 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     //#region Elements
     function showStamps() {
         stampInfo
-            .filter(row => row.PageNumber == pageInfo?.Number)
+            .filter(row => row.PageNumber == currentPageInfo?.Number)
             .map(row => {
                 if (!row.CoordX || !row.CoordY)
                     return;
@@ -206,7 +208,7 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     }
 
     function setNextPageNumber(isNext: boolean) {
-        var pageNumber = Number(pageInfo?.Number);
+        var pageNumber = Number(currentPageInfo?.Number);
         var nextNumber = isNext ? pageNumber + 1 : pageNumber - 1;
         if (nextNumber < 1 || nextNumber > entity?.Pagesstarkov?.length)
             return;
@@ -217,7 +219,7 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     }
 
     function updatePage(nextNumber: number) {
-        setPageInfo(entity.Pagesstarkov.find((row) => row.Number == nextNumber));
+        setCurrentPageInfo(entity.Pagesstarkov.find((row) => row.Number == nextNumber));
     }
 
     function setBtnState() {
@@ -229,9 +231,9 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
 
         prewiousPageBtn.removeAttribute(disabledAttribute);
         nextPageBtn.removeAttribute(disabledAttribute);
-        if (pageInfo?.Number == 1)
+        if (currentPageInfo?.Number == 1)
             prewiousPageBtn.setAttribute(disabledAttribute, disabledAttribute);
-        else if (pageInfo?.Number == entity?.Pagesstarkov?.length)
+        if (currentPageInfo?.Number == entity?.Pagesstarkov?.length)
             nextPageBtn.setAttribute(disabledAttribute, disabledAttribute);
     }
     //#endregion
@@ -264,10 +266,10 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
             <br />
             <label id='coords'>{coordsText}</label>
             <br />
-            <PageContainer Id='page' Ref={containerRef} entity={entity} pageNumber={pageInfo?.Number ?? 1}>
+            <PageContainer Id='page' Ref={containerRef} entity={entity} pageNumber={currentPageInfo?.Number ?? 1}>
                 {
                     stampInfo
-                        .filter(row => row.PageNumber == pageInfo?.Number)
+                        .filter(row => row.PageNumber == currentPageInfo?.Number)
                         .map((row) => {
                             return (
                                 <StampContainer
