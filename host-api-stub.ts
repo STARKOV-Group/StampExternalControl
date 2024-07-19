@@ -66,7 +66,6 @@ class HostStubApi implements IRemoteComponentCardApi {
           Number: 1,
           IsLandscape: true,
           Page: page1
-          
         },
         {
           Number: 2,

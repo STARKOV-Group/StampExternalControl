@@ -8,7 +8,7 @@ export interface IStampInfoRow extends IChildEntity<ICustomEntity> {
   PageNumber: number;
 }
 
-export interface IPagesRow extends IChildEntity<ICustomEntity> {
+export interface IPageInfo {
   Number: number;
   Page: object;
   IsLandscape: boolean;
@@ -16,5 +16,4 @@ export interface IPagesRow extends IChildEntity<ICustomEntity> {
 
 export interface ICustomEntity extends IEntity {
   StampInfostarkov: IChildEntityCollection<ICustomEntity, IStampInfoRow>;
-  Pagesstarkov: IChildEntityCollection<ICustomEntity, IPagesRow>;
 }

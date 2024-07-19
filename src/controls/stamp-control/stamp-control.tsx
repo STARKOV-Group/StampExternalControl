@@ -1,6 +1,6 @@
 import React, { createRef, useCallback, useEffect, useRef, useState } from 'react';
 import { IRemoteComponentCardApi, ControlUpdateHandler, IRemoteComponentContext } from '@directum/sungero-remote-component-types';
-import { ICustomEntity, IPagesRow, IStampInfoRow } from './types';
+import { ICustomEntity, IPageInfo, IStampInfoRow } from './types';
 import { dotToPx, pxToDot } from './functions';
 import StampContainer from './stamp-container'
 import PageContainer from './page-container'
@@ -18,8 +18,8 @@ const DEFAULT_CULTURE = 'en';
 const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     //#region Props
     const [entity, setEntity] = useState(() => api.getEntity<ICustomEntity>());
-    const [pageInfo, setPageInfo] = useState(entity.Pagesstarkov);
-    const [currentPageInfo, setCurrentPageInfo] = useState(pageInfo.find(() => true));
+    const [currentPageInfo, setCurrentPageInfo] = useState<IPageInfo>();
+    const [pageCount, setPageCount] = useState(0);
     const [stampInfo, setStampInfo] = useState(entity.StampInfostarkov);
     const [currentStampId, setCurrentStampId] = useState<number>();
     const [coordsText, setCoordsText] = useState('X, Y');
@@ -47,11 +47,10 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     });
     //#endregion
 
-    //#region Entity
+    //#region Handlers
     const handleControlUpdate: ControlUpdateHandler = useCallback((updatedContext) => {
         setEntity(api.getEntity<ICustomEntity>());
         setStampInfo(entity?.StampInfostarkov);
-        setPageInfo(entity?.Pagesstarkov);
         setContext(updatedContext);
     }, [api, setEntity]);
     api.onControlUpdate = handleControlUpdate;
@@ -63,12 +62,13 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     };
 
     useEffect(() => {
-        showStamps();
-    }, [stampInfo]);
+        getPageCount();
+        getPage(1);
+    }, []);
 
     useEffect(() => {
-        setCurrentPageInfo(pageInfo.find(() => true));
-    }, [setPageInfo]);
+        showStamps();
+    }, [stampInfo]);
 
     useEffect(() => {
         updateBackgroundImage(currentPageInfo);
@@ -173,10 +173,10 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
             })
     }
 
-    function updateBackgroundImage(pageInfo: IPagesRow | undefined) {
+    function updateBackgroundImage(pageInfo: IPageInfo | undefined) {
         let pageDiv = containerRef.current;
         if (pageDiv) {
-            pageDiv.style.backgroundImage = `url(data:image/png;base64,${(pageInfo?.Page as any)?.$value})`;
+            pageDiv.style.backgroundImage = `url(data:image/png;base64,${pageInfo?.Page})`;
             updateOrientation(pageInfo?.IsLandscape ?? false);
         }
     }
@@ -210,16 +210,12 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     function setNextPageNumber(isNext: boolean) {
         var pageNumber = Number(currentPageInfo?.Number);
         var nextNumber = isNext ? pageNumber + 1 : pageNumber - 1;
-        if (nextNumber < 1 || nextNumber > entity?.Pagesstarkov?.length)
+        if (nextNumber < 1 || nextNumber > pageCount)
             return;
 
         if (pageSelectorRef.current)
             pageSelectorRef.current.value = nextNumber.toString();
-        updatePage(nextNumber);
-    }
-
-    function updatePage(nextNumber: number) {
-        setCurrentPageInfo(entity.Pagesstarkov.find((row) => row.Number == nextNumber));
+        getPage(nextNumber);
     }
 
     function setBtnState() {
@@ -233,8 +229,42 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
         nextPageBtn.removeAttribute(disabledAttribute);
         if (currentPageInfo?.Number == 1)
             prewiousPageBtn.setAttribute(disabledAttribute, disabledAttribute);
-        if (currentPageInfo?.Number == entity?.Pagesstarkov?.length)
+        if (currentPageInfo?.Number == pageCount)
             nextPageBtn.setAttribute(disabledAttribute, disabledAttribute);
+    }
+    //#endregion
+
+    //#region Integration
+    async function executeFetch(requestString: string) {
+        var host = window.location.protocol + "//" + window.location.host;
+        const options = {
+            headers: new Headers({
+                'content-type': 'application/json',
+                'accept': 'application/json'
+            })
+        };
+        var response = await fetch(`${host}/Integration/odata/${requestString}`, options);
+        var data = await response.json();
+        return JSON.parse(data.value);
+    }
+
+    async function getPage(nextNumber: number) {
+        console.warn('getPage start');
+        var jsonData = await executeFetch(`Common/GetDocumentPage(docId=${entity.Id},pageNum=${nextNumber})`);
+        var pageRow = {
+            Number: nextNumber,
+            IsLandscape: jsonData.IsLandscape,
+            Page: jsonData.Image
+        } as IPageInfo;
+        setCurrentPageInfo(pageRow);
+        console.warn('getPage end');
+    }
+
+    async function getPageCount() {
+        console.warn('getPageCount start');
+        var jsonData = await executeFetch(`Common/GetDocumentPageCount(docId=${entity.Id})`);
+        setPageCount(jsonData);
+        console.warn('getPageCount end');
     }
     //#endregion
 
@@ -242,15 +272,16 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
         <main>
             <select
                 id='page-number'
-                onChange={(e) => updatePage(Number((e as React.ChangeEvent<HTMLSelectElement>).target.value))}
+                onChange={(e) => getPage(Number((e as React.ChangeEvent<HTMLSelectElement>).target.value))}
                 ref={pageSelectorRef}>
                 {
-                    entity.Pagesstarkov
-                        .map(row => {
+                    Array.from(Array(pageCount).keys())
+                        .map(x => {
                             return (
-                                <option key={row.Number}>{row.Number}</option>
+                                <option key={x + 1}>{x + 1}</option>
                             );
-                        })}
+                        })
+                        }
             </select>
             <br />
             <div>
