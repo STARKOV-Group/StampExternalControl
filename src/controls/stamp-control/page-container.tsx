@@ -1,7 +1,7 @@
 import React, { useState, useEffect, RefObject } from "react";
 import { ContextMenu } from "./context-menu/menu-style";
 import { ICustomEntity } from "./types";
-import { pxToDot, getAbsoluteOffset } from "./functions";
+import { pxToDot } from "./functions";
 import { useTranslation } from 'react-i18next';
 import './stamp-control.css'
 
@@ -52,10 +52,10 @@ const PageContainer = ({ Id, Ref, children, entity, pageNumber }: IPageContext) 
                     return;
 
                 setClicked(true);
-                var offsets = getAbsoluteOffset(e.currentTarget);
+                const rect = e.currentTarget.getBoundingClientRect();
                 setPoints({
-                    x: e.clientX - offsets.offsetX,
-                    y: e.clientY - offsets.offsetY,
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
                 });
             }}
             onMouseLeave={() => setClicked(false)}
