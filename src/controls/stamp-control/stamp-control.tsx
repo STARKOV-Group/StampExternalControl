@@ -7,6 +7,9 @@ import PageContainer from './page-container'
 import './stamp-control.css'
 import '../../../i18n';
 import { useTranslation } from 'react-i18next';
+const spinner = require("/public/img/Spinner.svg");
+const leftBtn = require("/public/img/previous.png");
+const rightBtn = require("/public/img/next.png");
 
 interface IProps {
     initialContext: IRemoteComponentContext;
@@ -22,16 +25,18 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     const [pageCount, setPageCount] = useState(0);
     const [stampInfo, setStampInfo] = useState(entity.StampInfostarkov);
     const [currentStampId, setCurrentStampId] = useState<number>();
-    const [coordsText, setCoordsText] = useState('X, Y');
+    const [coordsText, setCoordsText] = useState('');
     const [context, setContext] = useState(initialContext);
+    const [isLoading, setIsLoading] = useState(true);
+    const [fetchError, setFetchError] = useState('');
     const currentCulture = context.currentCulture ?? DEFAULT_CULTURE;
     const { t, i18n } = useTranslation();
     const isLocked = entity.LockInfo && entity.LockInfo.IsLocked && (!entity.LockInfo.IsLockedByMe || !entity.LockInfo.IsLockedHere);
     const isEnabled = entity.State.IsEnabled && !isLocked;
     const isClicked = useRef(false);
     const pageSelectorRef = useRef<HTMLSelectElement>(null);
-    const nextBtnRef = useRef<HTMLButtonElement>(null);
-    const prevBtnRef = useRef<HTMLButtonElement>(null);
+    const nextBtnRef = useRef<HTMLInputElement>(null);
+    const prevBtnRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     let boxRefs = stampInfo?.map(row => {
         return ({
@@ -79,6 +84,16 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
     useEffect(() => {
         i18n.changeLanguage(currentCulture);
     }, [currentCulture]);
+
+    useEffect(() => {
+        let pageDiv = containerRef.current;
+        if (pageDiv && isLoading) {
+            pageDiv.style.backgroundImage = `url(${spinner})`;
+            pageDiv.style.backgroundPosition = `center`;
+            pageDiv.style.backgroundSize = `40%`;
+            pageDiv.style.backgroundRepeat = `no-repeat`;
+        }
+    }, [isLoading]);
     //#endregion
 
     //#region DragControl
@@ -177,6 +192,7 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
         let pageDiv = containerRef.current;
         if (pageDiv) {
             pageDiv.style.backgroundImage = `url(data:image/png;base64,${pageInfo?.Page})`;
+            pageDiv.style.backgroundSize = `contain`;
             updateOrientation(pageInfo?.IsLandscape ?? false);
         }
     }
@@ -243,77 +259,93 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
                 'accept': 'application/json'
             })
         };
-        var response = await fetch(`${host}/Integration/odata/${requestString}`, options);
-        var data = await response.json();
-        return JSON.parse(data.value);
+        var response = await fetch(`${host}/Integration/odata/${requestString}`, options)
+            .then(res => {
+                if (res.ok) {
+                    setFetchError('');
+                    return res.json();
+                }
+                return res.text().then(text => {
+                    setFetchError(text);
+                    throw new Error(text);
+                })
+            });
+        return JSON.parse(response.value);
     }
 
     async function getPage(nextNumber: number) {
-        console.warn('getPage start');
+        setIsLoading(true);
         var jsonData = await executeFetch(`Common/GetDocumentPage(docId=${entity.Id},pageNum=${nextNumber})`);
+        setIsLoading(false);
         var pageRow = {
             Number: nextNumber,
             IsLandscape: jsonData.IsLandscape,
             Page: jsonData.Image
         } as IPageInfo;
         setCurrentPageInfo(pageRow);
-        console.warn('getPage end');
     }
 
     async function getPageCount() {
-        console.warn('getPageCount start');
         var jsonData = await executeFetch(`Common/GetDocumentPageCount(docId=${entity.Id})`);
         setPageCount(jsonData);
-        console.warn('getPageCount end');
     }
     //#endregion
 
     return (
-        <main>
-            <select
-                id='page-number'
-                onChange={(e) => getPage(Number((e as React.ChangeEvent<HTMLSelectElement>).target.value))}
-                ref={pageSelectorRef}>
-                {
-                    Array.from(Array(pageCount).keys())
-                        .map(x => {
-                            return (
-                                <option key={x + 1}>{x + 1}</option>
-                            );
-                        })
-                        }
-            </select>
-            <br />
-            <div>
-                <button
-                    id='prewiousPageBtn'
-                    onClick={() => setNextPageNumber(false)}
-                    ref={prevBtnRef}>{t('stamp.buttons.previous')}</button>
-                <button
-                    id='nextPageBtn'
-                    onClick={() => setNextPageNumber(true)}
-                    ref={nextBtnRef}>{t('stamp.buttons.next')}</button>
-            </div>
-            <br />
-            <label id='coords'>{coordsText}</label>
-            <br />
-            <PageContainer Id='page' Ref={containerRef} entity={entity} pageNumber={currentPageInfo?.Number ?? 1}>
-                {
-                    stampInfo
-                        .filter(row => row.PageNumber == currentPageInfo?.Number)
-                        .map((row) => {
-                            return (
-                                <StampContainer
-                                    key={row.Id}
-                                    Id={`stamp-container${row.Id}`}
-                                    Ref={boxRefs.find(x => x.stampId == row.Id)?.boxRef}
-                                    entity={entity}
-                                    stampId={row.Id} />
-                            );
-                        })
-                }
-            </PageContainer>
-        </main>
+        <div className='main-div'>
+            <main>
+                {fetchError ? <p style={{ color: 'red' }}>{fetchError}</p> : null}
+                <select
+                    id='page-number'
+                    onChange={(e) => getPage(Number((e as React.ChangeEvent<HTMLSelectElement>).target.value))}
+                    ref={pageSelectorRef}>
+                    {
+                        Array.from(Array(pageCount).keys())
+                            .map(x => {
+                                return (
+                                    <option key={x + 1}>{x + 1}</option>
+                                );
+                            })
+                    }
+                </select>
+                <div className='grid-container'>
+                    <input
+                        type="image"
+                        id='prewiousPageBtn'
+                        src={leftBtn}
+                        onClick={() => setNextPageNumber(false)}
+                        ref={prevBtnRef} />
+                    <input
+                        type="image"
+                        id='nextPageBtn'
+                        src={rightBtn}
+                        onClick={() => setNextPageNumber(true)}
+                        ref={nextBtnRef} />
+                </div>
+                <br />
+                {coordsText ?
+                    <div>
+                        <label id='coords'>{coordsText}</label>
+                        <br />
+                    </div> : null}
+                <PageContainer Id='page' Ref={containerRef} entity={entity} pageNumber={currentPageInfo?.Number ?? 1}>
+                    {
+                        stampInfo
+                            .filter(row => row.PageNumber == currentPageInfo?.Number)
+                            .map((row) => {
+                                return (
+                                    <StampContainer
+                                        key={row.Id}
+                                        Id={`stamp-container${row.Id}`}
+                                        Ref={boxRefs.find(x => x.stampId == row.Id)?.boxRef}
+                                        entity={entity}
+                                        stampId={row.Id} />
+                                );
+                            })
+                    }
+                </PageContainer>
+            </main>
+        </div>
     )
 }
 

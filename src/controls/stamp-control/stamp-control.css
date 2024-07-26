@@ -19,6 +19,19 @@
     background-size: cover;
 }
 
+.main-div {
+    padding-left: 100px;
+    padding-top: 20px;
+    padding-bottom: 100px;
+}
+
+.grid-container {
+    display: grid;
+    grid-gap: 30px;
+    grid-template-columns: 1fr 1fr;
+    place-items: center;
+}
+
 main {
     display: grid;
     place-items: center;
