@@ -1,5 +1,5 @@
 import { IEntity, IEntityPropertyInfo, IPropertyState, IRemoteComponentCardApi } from '@directum/sungero-remote-component-types';
-import { stampHtml, page1, page2 } from './test-data.ts';
+import { stampHtml } from './test-data.ts';
 
 /** Заглушка API для отладки в режиме standalone. */
 class HostStubApi implements IRemoteComponentCardApi {
@@ -59,18 +59,6 @@ class HostStubApi implements IRemoteComponentCardApi {
           CoordY: 300,
           StampHtml: stampHtml,
           PageNumber: 2
-        }
-      ],
-      Pagesstarkov: [
-        {
-          Number: 1,
-          IsLandscape: true,
-          Page: page1
-        },
-        {
-          Number: 2,
-          IsLandscape: true,
-          Page: page2
         }
       ]
     } as unknown as T;
