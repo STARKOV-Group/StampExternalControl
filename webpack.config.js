@@ -33,7 +33,7 @@ module.exports = (env, argv) => {
       rules: [
         {
           test: /\.(jpg|png|gif|jpeg)$/,
-          loader: 'url-loader',
+          type: 'asset/resource',
         },
         {
           test: /\.css$/,
