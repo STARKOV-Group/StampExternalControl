@@ -330,6 +330,8 @@ const StampControl: React.FC<IProps> = ({ initialContext, api }) => {
                     </div> : null}
                 <PageContainer Id='page' Ref={containerRef} entity={entity} pageNumber={currentPageInfo?.Number ?? 1}>
                     {
+                        isLoading ? 
+                        null :
                         stampInfo
                             .filter(row => row.PageNumber == currentPageInfo?.Number)
                             .map((row) => {
